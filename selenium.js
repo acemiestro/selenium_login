@@ -9,7 +9,7 @@ let bldr = new swd.Builder();
 // tab
 let driver = bldr.forBrowser("chrome").build();
 // global variables
-let username, password, gModule, gCourses;
+let username, password, gModule, gCourses, gLectures, gProblem;
 
 let credentials = fs.promises.readFile(credentialFile);
 credentials
@@ -59,18 +59,20 @@ credentials
         return driver.wait(swd.until.elementIsNotVisible(soe), 10000);
     }).then(function () {
         // find and go to coursePage
-        goToCoursePage();
         console.log("Course Page Reached");
+        return goToCoursePage();
     }).then(function () {
-        goToQuestionPage();
-    //     let metadata = fs.promises.readFile(metadataFile);
-    //     return metadata;
-    // }).then(function (metadata) {
-    //     let parser = JSON.parse(metadata);
-    //     let ques = parser[0];
-    //     // driver.get(ques.url);
+        let metadata = fs.promises.readFile(metadataFile);
+        return metadata;
+    }).then(function (metadata) {
+        let parser = JSON.parse(metadata);
+        let completionArr = []
+        for(let  i = 0; i < parser.length; i++){   
+            completionArr.push(goToQuestionPage(parser, i));
+        }
+        return Promise.all(completionArr);
     }).then(function () {
-        console.log();
+        console.log("Completed Submitions");
     }).catch(function (err) {
         console.log(err);
     })
@@ -98,7 +100,7 @@ function goToCoursePage() {
     })
 }
 
-function goToQuestionPage() {
+function goToQuestionPage(parser, obj) {
     let waiting = driver.wait(swd.until.elementsLocated(swd.By.css(".lis.tab")), 1000);
     waiting.then(function () {
         let selectModule = driver.findElements(swd.By.css(".lis.tab"));
@@ -113,12 +115,84 @@ function goToQuestionPage() {
     }).then(function (modulesText) {  
         let i;
         for (i = 0; i < modulesText.length; i++) {
-            if (modulesText[i].includes("Dynamic Programming") === true) {
+            if (modulesText[i].includes(parser[obj].module) === true) {
                 break;
             }
         }
         return gModule[i].click();
+    }).then(function(){
+        // return driver.wait(swd.until.elementsLocated(swd.By.css(".lis.tab")), 1000);
     }).then(function () {
-        console.log("Modules reached");
+        console.log("Question Page reached");
+        return goToQuestion(parser, obj);
+    }).catch(function(err){
+        console.log(err);
     })
+}
+
+function goToQuestion(parser, obj) {
+    let waiting = driver.wait(swd.until.elementsLocated(swd.By.css("p.title.black-text.no-margin")), 1000);
+    waiting.then(function(){
+        let lectures = driver.findElements(swd.By.css("p.title.black-text.no-margin"));
+        return lectures;
+    }).then(function(lectures){
+        gLectures = lectures;
+        let lecturesTextArr = [];
+        for (let i = 0; i < lectures.length; i++) {
+            lecturesTextArr.push(lectures[i].getText());
+        }
+        return Promise.all(lecturesTextArr);
+    }).then(function (lecturesText) {  
+        let i;
+        for (i = 0; i < lecturesText.length; i++) {
+            if (lecturesText[i].includes(parser[obj].lecture) === true) {
+                break;
+            }
+        }
+        return gLectures[i].click();
+    }).then(function(){
+        
+    }).then(function () {
+        console.log("Problem Page reached");
+        return goToProblem(parser, obj);
+    }).catch(function(err){
+        console.log(err);
+    })
+}
+
+function goToProblem(parser, obj) {
+    let waiting = driver.wait(swd.until.elementsLocated(swd.By.css("li.collection-item.no-margin.searchRow")), 1000);
+    waiting.then(function(){
+        let problem = driver.findElements(swd.By.css("li.collection-item.no-margin.searchRow"));
+        return problem;
+    }).then(function(problem){
+        gProblem = problem;
+        let problemTextArr = [];
+        for (let i = 0; i < problem.length; i++) {
+            problemTextArr.push(problem[i].getText());
+        }
+        return Promise.all(problemTextArr);
+    }).then(function (problemText) {  
+        let i;
+        for (i = 0; i < problemText.length; i++) {
+            if (problemText[i].includes(parser[obj].problem) === true) {
+                break;
+            }
+        }
+        return gProblem[i].click();
+    }).then(function(){
+        let findEditor = driver.findElement(swd.By.css(".tab.bold.editorTab"));
+        return findEditor;
+    }).then(function(editorButton){
+        return editorButton.click();
+    }).then(function () {
+        console.log("Editor Page reached");
+        return submitProblem(parser, obj);
+    }).catch(function(err){
+        console.log(err);
+    })
+}
+
+function submitProblem(parser, obj){
+    
 }
